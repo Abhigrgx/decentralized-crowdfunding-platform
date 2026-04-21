@@ -54,6 +54,16 @@ contract crowdfunding{
 		uint256 totalAmount;
     }
 
+    // 🟢 NEW CODE ADDED HERE 🟢 
+    // Structure for Milestone-based payouts
+    struct Milestone {
+        string description;
+        uint256 amount;
+        uint256 approvalVotes;
+        bool isClaimed;
+    }
+    // 🟢 END OF NEW CODE 🟢
+
     // Stores all the projects 
     Project[] projects;
 
@@ -62,6 +72,14 @@ contract crowdfunding{
 
     // Stores the list of fundings  by an address
     mapping(address => Funded[]) addressFundingList;
+
+    // 🟢 NEW CODE ADDED HERE 🟢 
+    // Stores milestones for a specific project index
+    mapping(uint256 => Milestone[]) public projectMilestones;
+    
+    // Tracks if a backer has voted: projectIndex => milestoneIndex => contributorAddress => boolean
+    mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasVotedOnMilestone;
+    // 🟢 END OF NEW CODE 🟢
 
     // Checks if an index is a valid index in projects array
     modifier validIndex(uint256 _index) {
@@ -211,6 +229,7 @@ contract crowdfunding{
         projects[_index].amountRaised += msg.value;
     }
 
+    // 🔴 MODIFIED CODE HERE 🔴
     // Helps project creator to transfer the raised funds to his address
     function claimFund(uint256 _index) validIndex(_index) external {
         require(projects[_index].creatorAddress == msg.sender, "You are not Project Owner");
@@ -218,9 +237,16 @@ contract crowdfunding{
         require(projects[_index].refundPolicy == RefundPolicy.NONREFUNDABLE 
                     || projects[_index].amountRaised >= projects[_index].fundingGoal, "Funding goal not reached");
         require(!projects[_index].claimedAmount, "Already claimed raised funds");
+        
         projects[_index].claimedAmount = true;
-        payable(msg.sender).transfer(projects[_index].amountRaised);
+        
+        // OLD RUG-PULL LOGIC DISABLED: 
+        // payable(msg.sender).transfer(projects[_index].amountRaised);
+        
+        // We leave this function so the status updates to 'claimed', 
+        // but the actual money transfer is now handled by Milestones.
     }
+    // 🔴 END OF MODIFIED CODE 🔴
 
     // Helper function to get the contributor index in the projects' contributor's array
     function getContributorIndex(uint256 _index) validIndex(_index) internal view returns(int256) {
@@ -247,6 +273,44 @@ contract crowdfunding{
         require(!projects[_index].refundClaimed[contributorIndex], "Already claimed refund amount");
         
         projects[_index].refundClaimed[contributorIndex] = true;
-        payable(msg.sender).transfer(projects[_index].amount[contributorIndex]);
+        (bool success, ) = payable(msg.sender).call{value: projects[_index].amount[contributorIndex]}("");
+        require(success, "Transfer failed.");
     }
+
+    // 🟢 NEW CODE ADDED HERE 🟢 (MILESTONE FUNCTIONS)
+
+    // 1. Creator creates a new milestone request
+    function addMilestone(uint256 _index, string memory _desc, uint256 _amount) external validIndex(_index) {
+        require(projects[_index].creatorAddress == msg.sender, "Only project creator can add milestones");
+        require(projects[_index].amountRaised >= _amount, "Milestone amount exceeds raised funds");
+        
+        projectMilestones[_index].push(Milestone(_desc, _amount, 0, false));
+    }
+
+    // 2. Backers vote to approve the milestone
+    function voteOnMilestone(uint256 _projectIndex, uint256 _milestoneIndex) external validIndex(_projectIndex) {
+        require(getContributorIndex(_projectIndex) != -1, "Only contributors can vote on milestones");
+        require(!hasVotedOnMilestone[_projectIndex][_milestoneIndex][msg.sender], "You have already voted for this milestone");
+
+        // Record the vote
+        hasVotedOnMilestone[_projectIndex][_milestoneIndex][msg.sender] = true;
+        projectMilestones[_projectIndex][_milestoneIndex].approvalVotes++;
+    }
+
+    // 3. Creator claims the funds IF 50% of backers approve
+    function claimMilestoneFund(uint256 _projectIndex, uint256 _milestoneIndex) external validIndex(_projectIndex) {
+        require(projects[_projectIndex].creatorAddress == msg.sender, "Only creator can claim funds");
+        require(!projectMilestones[_projectIndex][_milestoneIndex].isClaimed, "Milestone already claimed");
+
+        // Calculate if 50% of contributors have voted yes
+        uint256 requiredVotes = projects[_projectIndex].contributors.length / 2;
+        require(projectMilestones[_projectIndex][_milestoneIndex].approvalVotes > requiredVotes, "Milestone does not have enough backer votes");
+
+        // Mark as claimed and transfer the specific milestone amount
+        projectMilestones[_projectIndex][_milestoneIndex].isClaimed = true;
+        (bool success, ) = payable(msg.sender).call{value: projectMilestones[_projectIndex][_milestoneIndex].amount}("");
+        require(success, "Transfer failed.");
+    }
+    
+    // 🟢 END OF NEW CODE 🟢
 }

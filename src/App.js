@@ -11,7 +11,7 @@ import ProfileComponent from "./components/ProfileComponent";
 import { useState } from "react";
 import { ethers } from "ethers";
 import { abi } from "./abi";
-const CONTRACT_ADDRESS = "0xad7C61FC480E5EEBA7886Fc62A789F9921caC9d7";
+const CONTRACT_ADDRESS = "0x5d89a30c8B83232831AEf137863dDEb3BddfB68a";
 
 function App() {
   const [myContract, setMyContract] = useState(null);
@@ -56,9 +56,12 @@ function App() {
     let res = await connectToMetamask();
     if (res === true) {
       await changeNetwork();
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      signer = provider.getSigner();
+      
+      // ETHERS V6 UPDATES:
+      provider = new ethers.BrowserProvider(window.ethereum);
+      signer = await provider.getSigner(); 
       add = await signer.getAddress();
+      
       setAddress(add);
 
       try {

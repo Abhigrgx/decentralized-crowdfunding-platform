@@ -55,7 +55,7 @@ function CreateProjectComponent(props) {
   // submit the form input data to smart contract
   async function submitProjectData(e) {
     // handle the submit action of the form
-    const client = new Web3Storage({ token: process.env.WEB3_STORAGE_API_TOKEN });
+    const client = new Web3Storage({ token: process.env.REACT_APP_WEB3_STORAGE_API_TOKEN });
     e.preventDefault();
     if (inputImage) {
       try {

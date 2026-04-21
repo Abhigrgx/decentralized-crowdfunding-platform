@@ -24,7 +24,7 @@ function PaymentModal(props) {
       return;
     }
     try {
-      let fund = { value: ethers.utils.parseEther(amount.toString()) };
+      let fund = { value: ethers.parseEther(amount.toString()) };
       let txn = await props.contract.fundProject(props.index, fund);
       await txn.wait();
       alert(`${amount} AVAX Succesfully funded`);
