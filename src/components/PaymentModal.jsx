@@ -3,7 +3,6 @@ import { ethers } from "ethers";
 
 function PaymentModal(props) {
   let [amount, setAmount] = useState(1);
-  const PRECISION = 10 ** 18;
 
   // sets the modalShow state to false to disable rendering of modal
   function closeModal() {

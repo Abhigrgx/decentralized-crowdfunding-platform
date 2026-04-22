@@ -1,7 +1,9 @@
 import CategoryComponent from "./CategoryComponent";
 import { useEffect, useState } from "react";
 import dummyPic from "../assets/pg1.jpg";
+import { toPublicGatewayUrl } from "../utils/ipfs";
 import { Link, useLocation } from "react-router-dom";
+import { getAllProjects as fetchAllProjects } from "../api/client";
 
 export default function DiscoverComponent(props) {
   const location = useLocation();
@@ -14,36 +16,18 @@ export default function DiscoverComponent(props) {
   };
   const getAllProjects = async () => {
     try {
-      let res = await props.contract.getAllProjectsDetail().then((res) => {
-        let tmp = [];
-       for (const index in res) {
-          // 🚀 THE FIX 1: Remove the {... } spread operator
-          let {
-            amountRaised,
-            cid,
-            creatorName,
-            fundingGoal,
-            projectDescription,
-            projectName,
-            totalContributors,
-            category,
-          } = res[index];
-
-          // 🚀 THE FIX 2: Convert modern BigInts to standard Numbers
-          tmp.push({
-            amountRaised: Number(amountRaised),
-            cid,
-            creatorName,
-            fundingGoal: Number(fundingGoal),
-            projectDescription,
-            projectName,
-            totalContributors: Number(totalContributors),
-            index,
-            category: Number(category),
-          });
-        }
-        return tmp;
-      });
+      const result = await fetchAllProjects();
+      let res = result.data.map((p, idx) => ({
+        amountRaised: Number(p.amountRaised),
+        cid: p.cid,
+        creatorName: p.creatorName,
+        fundingGoal: Number(p.fundingGoal),
+        projectDescription: p.projectDescription,
+        projectName: p.projectName,
+        totalContributors: p.totalContributors,
+        index: p.id,
+        category: Number(p.category),
+      }));
 
       if (filter !== -1) {
         let tmp = [];
@@ -57,8 +41,8 @@ export default function DiscoverComponent(props) {
 
       setProjects(res);
     } catch (err) {
-      alert(err);
-      console.log(err);
+      console.error("Failed to fetch projects:", err);
+      alert("Failed to load projects: " + err.message);
     }
   };
   const renderCards = () => {
@@ -71,7 +55,7 @@ export default function DiscoverComponent(props) {
                 className="cardImg"
                 style={{
                   backgroundImage: project.cid
-                    ? `url(${project.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8)`
+                    ? `url(${toPublicGatewayUrl(project.cid)})`
                     : dummyPic,
                 }}
               ></div>

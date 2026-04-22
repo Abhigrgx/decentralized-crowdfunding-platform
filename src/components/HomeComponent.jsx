@@ -3,6 +3,8 @@ import CategoryComponent from "./CategoryComponent";
 import ScrollShowbarComponent from "./ScrollShowbarComponent";
 import { Link } from "react-router-dom";
 import dummyPic from "../assets/pg1.jpg";
+import { toPublicGatewayUrl } from "../utils/ipfs";
+import { getAllProjects as fetchAllProjects } from "../api/client";
 
 export default function HomeComponent(props) {
   const PRECISION = 10 ** 18;
@@ -13,54 +15,45 @@ export default function HomeComponent(props) {
   });
   const [featuredRcmd, setFeaturedRcmd] = useState([]);
   const [recentUploads, setRecentUploads] = useState([]);
+  const [error, setError] = useState("");
   const getAllProjects = async () => {
     try {
-      let res = await props.contract.getAllProjectsDetail().then((res) => {
-        let tmp = [];
-        let amount = 0,
-          contrib = 0;
-       for (const index in res) {
-          // 🚀 THE FIX 1: Remove the {... } spread operator
-          let {
-            amountRaised,
-            cid,
-            creatorName,
-            fundingGoal,
-            projectDescription,
-            projectName,
-            totalContributors,
-          } = res[index]; 
-          
-          // 🚀 THE FIX 2: Convert modern BigInts to standard Numbers
-          tmp.push({
-            amountRaised: Number(amountRaised),
-            cid,
-            creatorName,
-            fundingGoal: Number(fundingGoal),
-            projectDescription,
-            projectName,
-            totalContributors: Number(totalContributors),
-            index,
-          });
-          amount += Number(amountRaised) / PRECISION;
-          contrib += Number(totalContributors);
-        }
-        setStats({
-          projects: tmp.length,
-          fundings: amount,
-          contributors: contrib,
-        });
-        return tmp;
+      const result = await fetchAllProjects();
+      let res = result.data.map((p, idx) => ({
+        amountRaised: Number(p.amountRaised),
+        cid: p.cid,
+        creatorName: p.creatorName,
+        fundingGoal: Number(p.fundingGoal),
+        projectDescription: p.projectDescription,
+        projectName: p.projectName,
+        totalContributors: p.totalContributors,
+        index: p.id,
+      }));
+
+      // Calculate stats from fetched data
+      let amount = 0, contrib = 0;
+      for (const project of res) {
+        amount += Number(project.amountRaised) / PRECISION;
+        contrib += Number(project.totalContributors);
+      }
+      
+      setStats({
+        projects: res.length,
+        fundings: amount,
+        contributors: contrib,
       });
+
+      // Sort by total contributors and set featured + recent
       res.sort((a, b) => {
         return b.totalContributors * 1 - a.totalContributors * 1;
       });
       setFeaturedRcmd(res.slice(0, 4));
       setRecentUploads(res.slice(4, 24));
-    } catch (err) {
-      alert(err);
-      console.log(err);
-    }
+      setError("");
+   } catch (err) {
+   console.error("Failed to fetch projects:", err);
+   setError("Failed to load projects: " + err.message);
+}
   };
 
   const renderRecommendations = (val) => {
@@ -72,7 +65,7 @@ export default function HomeComponent(props) {
               className="rcmdCardImg"
               style={{
                 backgroundImage: project.cid
-                  ? `url(${project.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8)`
+                  ? `url(${toPublicGatewayUrl(project.cid)})`
                   : dummyPic,
               }}
             ></div>
@@ -102,6 +95,7 @@ export default function HomeComponent(props) {
   return (
     <>
       <CategoryComponent isHome={true} />
+      {error && <div className="alert alert-danger">{error}</div>}
       {/* siteStats */}
       <div className="siteStats">
         <div className="tagLine">
@@ -136,7 +130,7 @@ export default function HomeComponent(props) {
                   className="featuredCardProjectImg"
                   style={{
                     backgroundImage: featuredRcmd[0].cid
-                      ? `url(${"https://" + featuredRcmd[0].cid})`
+                      ? `url(${featuredRcmd[0].cid})`
                       : dummyPic,
                   }}
                 ></div>

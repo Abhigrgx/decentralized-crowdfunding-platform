@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { BsArrowLeftCircle, BsArrowRightCircle } from "react-icons/bs";
 import dummyPic from "../assets/pg1.jpg";
+import { toPublicGatewayUrl } from "../utils/ipfs";
 
 export default function ScrollShowbarComponent(props) {
   const scroll = (val) => {
@@ -16,7 +17,7 @@ export default function ScrollShowbarComponent(props) {
               className="cardImg"
               style={{
                 backgroundImage: project.cid
-                  ? `url(${project.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8)`
+                  ? `url(${toPublicGatewayUrl(project.cid)})`
                   : dummyPic,
               }}
             ></div>

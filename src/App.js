@@ -79,7 +79,7 @@ function App() {
   // Helps open Metamask
   async function connectToMetamask() {
     try {
-      await window.ethereum.enable();
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
       return true;
     } catch (err) {
       return false;
@@ -94,7 +94,7 @@ function App() {
   };
   return (
     <div className="app">
-      <BrowserRouter basename={process.env.PUBLIC_URL}>
+      <BrowserRouter basename={process.env.PUBLIC_URL} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         {myContract && <NavbarComponent address={address} />}
         <Routes>
           <Route

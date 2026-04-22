@@ -2,6 +2,7 @@
   "name": "crowdfunding-platform-avalanche",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:8080",
   "dependencies": {
     "@react-md/tabs": "^5.1.6",
     "@react-md/theme": "^5.1.6",

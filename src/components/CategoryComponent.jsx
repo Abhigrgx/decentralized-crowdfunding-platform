@@ -18,13 +18,13 @@ export default function CategoryComponent(props) {
       });
     }
   };
-  const setSelectedFocus = () => {
-    props.filter !== -1 &&
-      document.getElementsByClassName("categoryItem")[props.filter]?.focus();
-  };
+
   useEffect(() => {
-    setSelectedFocus();
-  }, []);
+    if (props.filter !== -1) {
+      document.getElementsByClassName("categoryItem")[props.filter]?.focus();
+    }
+  }, [props.filter]);
+
   return (
     <div className="category">
       <div

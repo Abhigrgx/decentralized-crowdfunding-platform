@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
 import dummyPic from "../assets/pg1.jpg";
+import { toPublicGatewayUrl } from "../utils/ipfs";
 
 function ProjectComponent(props) {
   const [modalShow, setModalShow] = useState(false);
@@ -38,70 +39,69 @@ function ProjectComponent(props) {
   async function getProjectDetails() {
     try {
       // fetching project information from the contract
-      await props.contract.getProject(parseInt(index)).then((res) => {
-        // 🚀 FIX 1: Removed the { ... } spread operator
-        let {
-          amountRaised,
-          cid,
-          creatorName,
-          fundingGoal,
-          projectDescription,
-          projectName,
-          contributors,
-          creationTime,
-          duration,
-          projectLink,
-          amount,
-          creatorAddress,
-          refundPolicy,
-          category,
-          refundClaimed,
-          claimedAmount,
-        } = res;        
+      const res = await props.contract.getProject(parseInt(index));
+      
+      let {
+        amountRaised,
+        cid,
+        creatorName,
+        fundingGoal,
+        projectDescription,
+        projectName,
+        contributors,
+        creationTime,
+        duration,
+        projectLink,
+        amount,
+        creatorAddress,
+        refundPolicy,
+        category,
+        refundClaimed,
+        claimedAmount,
+      } = res;        
 
-        let tmp = [];
-        for (const index in contributors) {
-          tmp.push({
-            contributor: contributors[index],
-            amount: amount[index],
-            refundClaimed: refundClaimed[index]
-          });
-        }
-
-        tmp.sort((a, b) => {return (b.amount - a.amount)});
-        
-        let contributorsCopy = [];
-        let amountCopy = [];
-        let refundClaimedCopy = [];
-        for (const index in tmp) {
-          contributorsCopy.push(tmp[index].contributor);
-          amountCopy.push(tmp[index].amount);
-          refundClaimedCopy.push(tmp[index].refundClaimed);
-        }
-
-        // 🚀 FIX 2: Wrapped the numbers in Number() so the progress bar doesn't crash
-        setProjectDetails({
-          amountRaised: Number(amountRaised),
-          cid: cid,
-          creatorName: creatorName,
-          fundingGoal: Number(fundingGoal),
-          projectDescription: projectDescription,
-          projectName: projectName,
-          contributors: contributorsCopy,
-          creationTime: Number(creationTime),
-          duration: Number(duration),
-          projectLink: projectLink,
-          amount: amountCopy,
-          creatorAddress: creatorAddress,
-          refundPolicy: refundPolicy,
-          category: Number(category),
-          refundClaimed: refundClaimedCopy,
-          claimedAmount: claimedAmount,
+      let tmp = [];
+      for (const idx in contributors) {
+        tmp.push({
+          contributor: contributors[idx],
+          amount: amount[idx],
+          refundClaimed: refundClaimed[idx]
         });
+      }
+
+      tmp.sort((a, b) => {return (b.amount - a.amount)});
+      
+      let contributorsCopy = [];
+      let amountCopy = [];
+      let refundClaimedCopy = [];
+      for (const idx in tmp) {
+        contributorsCopy.push(tmp[idx].contributor);
+        amountCopy.push(tmp[idx].amount);
+        refundClaimedCopy.push(tmp[idx].refundClaimed);
+      }
+
+      setProjectDetails({
+        amountRaised: Number(amountRaised),
+        cid: cid,
+        creatorName: creatorName,
+        fundingGoal: Number(fundingGoal),
+        projectDescription: projectDescription,
+        projectName: projectName,
+        contributors: contributorsCopy,
+        creationTime: Number(creationTime),
+        duration: Number(duration),
+        projectLink: projectLink,
+        amount: amountCopy,
+        creatorAddress: creatorAddress,
+        refundPolicy: refundPolicy,
+        category: Number(category),
+        refundClaimed: refundClaimedCopy,
+        claimedAmount: claimedAmount,
       });
+
     } catch (error) {
       alert("Error fetching details");
-      console.log(error);
+      console.error(error);
     }
   }
 
@@ -279,7 +279,7 @@ function ProjectComponent(props) {
           <div className="projectImage">
             <img
               src={
-                  projectDetails.cid ? `${projectDetails.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8` : dummyPic
+                  projectDetails.cid ? toPublicGatewayUrl(projectDetails.cid) : dummyPic
               }
               alt="test-pic"
             />

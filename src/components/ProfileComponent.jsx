@@ -1,6 +1,7 @@
 import ScrollShowbarComponent from "./ScrollShowbarComponent";
 import { useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { getUserFundings } from "../api/client";
 
 function ProfileComponent(props) {
   const location = useLocation();
@@ -11,7 +12,7 @@ function ProfileComponent(props) {
   const [userFundedProjects, setUserFundedProjects] = useState([]);
 
   // fetch the projects created by the address passed as parameter
-  async function getProjectList() {
+  const getProjectList = useCallback(async () => {
     let res;
     try {
       // fetch the project information from the contract for the address
@@ -42,6 +43,7 @@ function ProfileComponent(props) {
     } catch (error) {
       console.log(error);
       alert("Error Fetching data: " + error);
+      return;
     }
 
     let currProjects = [];
@@ -62,56 +64,48 @@ function ProfileComponent(props) {
     }
     setOngoingProjects(currProjects);
     setCompletedProjects(finishedProjects);
-  }
+  }, [address, props.contract]);
 
   // fetch the list of projects, the user has funded
-  async function getUserFundingList() {
-    let res;
+  const getUserFundingList = useCallback(async () => {
     try {
-      let fundingList = await props.contract
-        .getUserFundings(props.userAddress)
-        .then((fundingList) => {
-          let tmp = [];
-          for (const index in fundingList) {
-            tmp.push(fundingList[index].projectIndex);
-          }
-          return tmp;
-        });
+      const result = await getUserFundings(props.userAddress);
+      const fundingList = result.data || [];
 
-      res = await props.contract.getProjectsDetail(fundingList).then((res) => {
-        let tmp = [];
-        for (const index in res) {
-          let { cid, creatorName, projectDescription, projectName } = {
-            ...res[index],
-          };
-          tmp.push({
-            cid,
-            creatorName,
-            projectDescription,
-            projectName,
-            index: Number(fundingList[index]),
+      // fundingList contains: [{ projectIndex: number, totalAmount: string }, ...]
+      // Now fetch full details for each project
+      const fundedProjects = [];
+      for (const funding of fundingList) {
+        try {
+          const projectRes = await props.contract.getProject(funding.projectIndex);
+          fundedProjects.push({
+            cid: projectRes.cid,
+            creatorName: projectRes.creatorName,
+            projectDescription: projectRes.projectDescription,
+            projectName: projectRes.projectName,
+            index: funding.projectIndex,
           });
+        } catch (projectError) {
+          console.error(`Error fetching project ${funding.projectIndex}:`, projectError);
         }
-        return tmp;
-      });
+      }
+      setUserFundedProjects(fundedProjects);
     } catch (error) {
-      console.log(error);
-      alert("Error fetching user funding list: " + error);
+      console.error("Failed to fetch user funding list:", error);
+      alert("Error fetching user funding list: " + error.message);
     }
-
-    setUserFundedProjects(res);
-  }
+  }, [props.userAddress, props.contract]);
 
   useEffect(() => {
     getProjectList();
-  }, []);
+  }, [getProjectList]);
 
   useEffect(() => {
     if (props.userAddress === address) {
       // only executing if visit own profile
       getUserFundingList();
     }
-  }, []);
+  }, [address, getUserFundingList, props.userAddress]);
 
   return (
     <div className="profileContainer">

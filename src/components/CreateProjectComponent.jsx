@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { uploadImage } from "../api/client";
 function CreateProjectComponent(props) {
   const [formInput, setFormInput] = useState({
     category: "",
@@ -55,23 +56,17 @@ function CreateProjectComponent(props) {
 e.preventDefault();
  if (inputImage) {
    try {
-     console.log("Uploading to Pinata...");
-     const formData = new FormData();
-     formData.append('file', inputImage.files[0]);
-
-     const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-       method: "POST",
-       headers: {
-         Authorization: `Bearer ${process.env.REACT_APP_PINATA_JWT}`,
-       },
-       body: formData,
-     });
-
-     const resData = await res.json();
-     console.log("Pinata CID:", resData.IpfsHash);
-     formInput["image"] = `https://azure-dear-fish-625.mypinata.cloud/ipfs/${resData.IpfsHash}`;
+     console.log("Uploading to Pinata via backend...");
+     const { data: uploadResult, success } = await uploadImage(inputImage.files[0]);
+     
+     if (!success) {
+       throw new Error("Upload failed");
+     }
+     
+     console.log("Pinata CID:", uploadResult.cid);
+     formInput["image"] = uploadResult.gatewayUrl;
    } catch (error) {
-     alert("Uploading file error: " + error);
+     alert("Uploading file error: " + error.message);
      console.log(error);
      return;
    }
