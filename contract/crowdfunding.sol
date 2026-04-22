@@ -73,6 +73,12 @@ contract crowdfunding{
 
     // Stores milestones for a specific project index
     mapping(uint256 => Milestone[]) public projectMilestones;
+
+    // Tracks total milestone allocation per project to prevent over-allocation.
+    mapping(uint256 => uint256) public projectMilestoneAllocatedAmount;
+
+    // Tracks total milestone withdrawals per project to prevent over-claiming.
+    mapping(uint256 => uint256) public projectMilestoneClaimedAmount;
     
     // Tracks if a backer has voted: projectIndex => milestoneIndex => contributorAddress => boolean
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasVotedOnMilestone;
@@ -276,14 +282,20 @@ contract crowdfunding{
     // 1. Creator creates a new milestone request
     function addMilestone(uint256 _index, string memory _desc, uint256 _amount) external validIndex(_index) {
         require(projects[_index].creatorAddress == msg.sender, "Only project creator can add milestones");
-        require(projects[_index].amountRaised >= _amount, "Milestone amount exceeds raised funds");
+        require(_amount > 0, "Milestone amount must be greater than zero");
+        require(projects[_index].duration + projects[_index].creationTime < block.timestamp, "Project Funding Time Not Expired");
+        require(projects[_index].refundPolicy == RefundPolicy.NONREFUNDABLE 
+                    || projects[_index].amountRaised >= projects[_index].fundingGoal, "Funding goal not reached");
+        require(projectMilestoneAllocatedAmount[_index] + _amount <= projects[_index].amountRaised, "Milestones exceed raised funds");
         
         projectMilestones[_index].push(Milestone(_desc, _amount, 0, false));
+        projectMilestoneAllocatedAmount[_index] += _amount;
     }
 
     // 2. Backers vote to approve the milestone
     function voteOnMilestone(uint256 _projectIndex, uint256 _milestoneIndex) external validIndex(_projectIndex) {
         require(getContributorIndex(_projectIndex) != -1, "Only contributors can vote on milestones");
+        require(_milestoneIndex < projectMilestones[_projectIndex].length, "Invalid milestone index");
         require(!hasVotedOnMilestone[_projectIndex][_milestoneIndex][msg.sender], "You have already voted for this milestone");
 
         // Record the vote
@@ -294,15 +306,31 @@ contract crowdfunding{
     // 3. Creator claims the funds IF 50% of backers approve
     function claimMilestoneFund(uint256 _projectIndex, uint256 _milestoneIndex) external validIndex(_projectIndex) {
         require(projects[_projectIndex].creatorAddress == msg.sender, "Only creator can claim funds");
+        require(projects[_projectIndex].duration + projects[_projectIndex].creationTime < block.timestamp, "Project Funding Time Not Expired");
+        require(projects[_projectIndex].refundPolicy == RefundPolicy.NONREFUNDABLE 
+                    || projects[_projectIndex].amountRaised >= projects[_projectIndex].fundingGoal, "Funding goal not reached");
+        require(_milestoneIndex < projectMilestones[_projectIndex].length, "Invalid milestone index");
         require(!projectMilestones[_projectIndex][_milestoneIndex].isClaimed, "Milestone already claimed");
 
-        // Calculate if 50% of contributors have voted yes
-        uint256 requiredVotes = projects[_projectIndex].contributors.length / 2;
-        require(projectMilestones[_projectIndex][_milestoneIndex].approvalVotes > requiredVotes, "Milestone does not have enough backer votes");
+        uint256 totalContributors = projects[_projectIndex].contributors.length;
+        require(totalContributors > 0, "No contributors in project");
+
+        // Require at least 50% approval votes from contributors.
+        require(
+            projectMilestones[_projectIndex][_milestoneIndex].approvalVotes * 2 >= totalContributors,
+            "Milestone does not have enough backer votes"
+        );
+
+        uint256 claimAmount = projectMilestones[_projectIndex][_milestoneIndex].amount;
+        require(
+            projectMilestoneClaimedAmount[_projectIndex] + claimAmount <= projects[_projectIndex].amountRaised,
+            "Milestone claims exceed raised funds"
+        );
 
         // Mark as claimed and transfer the specific milestone amount
         projectMilestones[_projectIndex][_milestoneIndex].isClaimed = true;
-        (bool success, ) = payable(msg.sender).call{value: projectMilestones[_projectIndex][_milestoneIndex].amount}("");
+        projectMilestoneClaimedAmount[_projectIndex] += claimAmount;
+        (bool success, ) = payable(msg.sender).call{value: claimAmount}("");
         require(success, "Transfer failed.");
     }
 }
