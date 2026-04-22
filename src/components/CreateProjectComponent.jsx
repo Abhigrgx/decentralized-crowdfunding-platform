@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { create } from "ipfs-http-client";
-import { Web3Storage } from 'web3.storage';
-
 function CreateProjectComponent(props) {
   const [formInput, setFormInput] = useState({
     category: "",
@@ -55,24 +52,30 @@ function CreateProjectComponent(props) {
   // submit the form input data to smart contract
   async function submitProjectData(e) {
     // handle the submit action of the form
-    const client = new Web3Storage({ token: process.env.REACT_APP_WEB3_STORAGE_API_TOKEN });
-    e.preventDefault();
-    if (inputImage) {
-      try {
-        console.log("InputImages", inputImage.files);
-        const cid = await client.put(inputImage.files, {
-          name: "Project Image",
-          maxRetries: 3,
-        });
-        console.log(cid);
-        formInput["image"] = `ipfs.io/ipfs/${cid}/${inputImage.files[0].name}`;
-      } catch (error) {
-        alert("Uploading file error: " + error);
-        console.log(error);
-        // return since if selected image doesn't get uploaded to ipfs
-        return;
-      }
-    }
+e.preventDefault();
+ if (inputImage) {
+   try {
+     console.log("Uploading to Pinata...");
+     const formData = new FormData();
+     formData.append('file', inputImage.files[0]);
+
+     const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+       method: "POST",
+       headers: {
+         Authorization: `Bearer ${process.env.REACT_APP_PINATA_JWT}`,
+       },
+       body: formData,
+     });
+
+     const resData = await res.json();
+     console.log("Pinata CID:", resData.IpfsHash);
+     formInput["image"] = `https://azure-dear-fish-625.mypinata.cloud/ipfs/${resData.IpfsHash}`;
+   } catch (error) {
+     alert("Uploading file error: " + error);
+     console.log(error);
+     return;
+   }
+ }
 
     // check for double submit (since the formInput['category']) is changed to integer on first submit
     // if not checked, second submit gives undefined value since getCategoryCode() doesn't have any mapping for integer code.

@@ -16,7 +16,7 @@ export default function ScrollShowbarComponent(props) {
               className="cardImg"
               style={{
                 backgroundImage: project.cid
-                  ? `url(${"https://" + project.cid})`
+                  ? `url(${project.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8)`
                   : dummyPic,
               }}
             ></div>

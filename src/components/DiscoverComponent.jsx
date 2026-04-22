@@ -16,7 +16,8 @@ export default function DiscoverComponent(props) {
     try {
       let res = await props.contract.getAllProjectsDetail().then((res) => {
         let tmp = [];
-        for (const index in res) {
+       for (const index in res) {
+          // 🚀 THE FIX 1: Remove the {... } spread operator
           let {
             amountRaised,
             cid,
@@ -26,17 +27,19 @@ export default function DiscoverComponent(props) {
             projectName,
             totalContributors,
             category,
-          } = { ...res[index] };
+          } = res[index];
+
+          // 🚀 THE FIX 2: Convert modern BigInts to standard Numbers
           tmp.push({
-            amountRaised,
+            amountRaised: Number(amountRaised),
             cid,
             creatorName,
-            fundingGoal,
+            fundingGoal: Number(fundingGoal),
             projectDescription,
             projectName,
-            totalContributors,
+            totalContributors: Number(totalContributors),
             index,
-            category,
+            category: Number(category),
           });
         }
         return tmp;
@@ -68,7 +71,7 @@ export default function DiscoverComponent(props) {
                 className="cardImg"
                 style={{
                   backgroundImage: project.cid
-                    ? `url(${"https://" + project.cid})`
+                    ? `url(${project.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8)`
                     : dummyPic,
                 }}
               ></div>
@@ -86,6 +89,7 @@ export default function DiscoverComponent(props) {
 
   useEffect(() => {
     getAllProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   return (

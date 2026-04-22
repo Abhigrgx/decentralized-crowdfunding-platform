@@ -54,7 +54,6 @@ contract crowdfunding{
 		uint256 totalAmount;
     }
 
-    // 🟢 NEW CODE ADDED HERE 🟢 
     // Structure for Milestone-based payouts
     struct Milestone {
         string description;
@@ -62,7 +61,6 @@ contract crowdfunding{
         uint256 approvalVotes;
         bool isClaimed;
     }
-    // 🟢 END OF NEW CODE 🟢
 
     // Stores all the projects 
     Project[] projects;
@@ -73,13 +71,11 @@ contract crowdfunding{
     // Stores the list of fundings  by an address
     mapping(address => Funded[]) addressFundingList;
 
-    // 🟢 NEW CODE ADDED HERE 🟢 
     // Stores milestones for a specific project index
     mapping(uint256 => Milestone[]) public projectMilestones;
     
     // Tracks if a backer has voted: projectIndex => milestoneIndex => contributorAddress => boolean
     mapping(uint256 => mapping(uint256 => mapping(address => bool))) public hasVotedOnMilestone;
-    // 🟢 END OF NEW CODE 🟢
 
     // Checks if an index is a valid index in projects array
     modifier validIndex(uint256 _index) {
@@ -229,7 +225,6 @@ contract crowdfunding{
         projects[_index].amountRaised += msg.value;
     }
 
-    // 🔴 MODIFIED CODE HERE 🔴
     // Helps project creator to transfer the raised funds to his address
     function claimFund(uint256 _index) validIndex(_index) external {
         require(projects[_index].creatorAddress == msg.sender, "You are not Project Owner");
@@ -246,7 +241,6 @@ contract crowdfunding{
         // We leave this function so the status updates to 'claimed', 
         // but the actual money transfer is now handled by Milestones.
     }
-    // 🔴 END OF MODIFIED CODE 🔴
 
     // Helper function to get the contributor index in the projects' contributor's array
     function getContributorIndex(uint256 _index) validIndex(_index) internal view returns(int256) {
@@ -277,7 +271,7 @@ contract crowdfunding{
         require(success, "Transfer failed.");
     }
 
-    // 🟢 NEW CODE ADDED HERE 🟢 (MILESTONE FUNCTIONS)
+    //(MILESTONE FUNCTIONS)
 
     // 1. Creator creates a new milestone request
     function addMilestone(uint256 _index, string memory _desc, uint256 _amount) external validIndex(_index) {
@@ -311,6 +305,4 @@ contract crowdfunding{
         (bool success, ) = payable(msg.sender).call{value: projectMilestones[_projectIndex][_milestoneIndex].amount}("");
         require(success, "Transfer failed.");
     }
-    
-    // 🟢 END OF NEW CODE 🟢
 }

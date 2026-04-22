@@ -19,7 +19,8 @@ export default function HomeComponent(props) {
         let tmp = [];
         let amount = 0,
           contrib = 0;
-        for (const index in res) {
+       for (const index in res) {
+          // 🚀 THE FIX 1: Remove the {... } spread operator
           let {
             amountRaised,
             cid,
@@ -28,18 +29,20 @@ export default function HomeComponent(props) {
             projectDescription,
             projectName,
             totalContributors,
-          } = { ...res[index] };
+          } = res[index]; 
+          
+          // 🚀 THE FIX 2: Convert modern BigInts to standard Numbers
           tmp.push({
-            amountRaised,
+            amountRaised: Number(amountRaised),
             cid,
             creatorName,
-            fundingGoal,
+            fundingGoal: Number(fundingGoal),
             projectDescription,
             projectName,
-            totalContributors,
+            totalContributors: Number(totalContributors),
             index,
           });
-          amount += Number(amountRaised / PRECISION);
+          amount += Number(amountRaised) / PRECISION;
           contrib += Number(totalContributors);
         }
         setStats({
@@ -69,7 +72,7 @@ export default function HomeComponent(props) {
               className="rcmdCardImg"
               style={{
                 backgroundImage: project.cid
-                  ? `url(${"https://" + project.cid})`
+                  ? `url(${project.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8)`
                   : dummyPic,
               }}
             ></div>
@@ -93,6 +96,7 @@ export default function HomeComponent(props) {
 
   useEffect(() => {
     getAllProjects();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

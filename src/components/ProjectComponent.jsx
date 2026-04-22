@@ -38,7 +38,8 @@ function ProjectComponent(props) {
   async function getProjectDetails() {
     try {
       // fetching project information from the contract
-      let res = await props.contract.getProject(parseInt(index)).then((res) => {
+      await props.contract.getProject(parseInt(index)).then((res) => {
+        // 🚀 FIX 1: Removed the { ... } spread operator
         let {
           amountRaised,
           cid,
@@ -56,7 +57,7 @@ function ProjectComponent(props) {
           category,
           refundClaimed,
           claimedAmount,
-        } = { ...res };        
+        } = res;        
 
         let tmp = [];
         for (const index in contributors) {
@@ -78,21 +79,22 @@ function ProjectComponent(props) {
           refundClaimedCopy.push(tmp[index].refundClaimed);
         }
 
+        // 🚀 FIX 2: Wrapped the numbers in Number() so the progress bar doesn't crash
         setProjectDetails({
-          amountRaised: amountRaised,
+          amountRaised: Number(amountRaised),
           cid: cid,
           creatorName: creatorName,
-          fundingGoal: fundingGoal,
+          fundingGoal: Number(fundingGoal),
           projectDescription: projectDescription,
           projectName: projectName,
           contributors: contributorsCopy,
-          creationTime: creationTime * 1,
-          duration: duration,
+          creationTime: Number(creationTime),
+          duration: Number(duration),
           projectLink: projectLink,
           amount: amountCopy,
           creatorAddress: creatorAddress,
           refundPolicy: refundPolicy,
-          category: category,
+          category: Number(category),
           refundClaimed: refundClaimedCopy,
           claimedAmount: claimedAmount,
         });
@@ -105,10 +107,12 @@ function ProjectComponent(props) {
 
   useEffect(() => {
     getProjectDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     getProjectDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShow]);
 
   // useEffect hook to handle the countdown timer
@@ -146,6 +150,7 @@ function ProjectComponent(props) {
 
   useEffect(() => {
     updateProgressBar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectDetails]);
 
   // sets the condition true for payment modal to render 
@@ -274,7 +279,7 @@ function ProjectComponent(props) {
           <div className="projectImage">
             <img
               src={
-                projectDetails.cid ? "https://" + projectDetails.cid : dummyPic
+                  projectDetails.cid ? `${projectDetails.cid}?pinataGatewayToken=I2Ce1jfGF-2u_CtrYSTI17u7IhIdOTQ6y9PrvFbKxRmoIJKMS9RrHd9RCTFM0Yv8` : dummyPic
               }
               alt="test-pic"
             />
@@ -369,6 +374,7 @@ function ProjectComponent(props) {
                 <a
                   className="projectLink"
                   target="_blank"
+                  rel="noreferrer"
                   href={projectDetails.projectLink}
                 >
                   {projectDetails.projectLink}
