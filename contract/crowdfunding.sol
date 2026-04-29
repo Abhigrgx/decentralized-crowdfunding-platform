@@ -59,6 +59,7 @@ contract crowdfunding{
         string description;
         uint256 amount;
         uint256 approvalVotes;
+        
         bool isClaimed;
     }
 
