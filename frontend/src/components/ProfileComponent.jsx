@@ -5,8 +5,8 @@ import { getUserFundings } from "../api/client";
 
 function ProfileComponent(props) {
   const location = useLocation();
-  const { address } = location.state;
-  const { name } = location.state;
+  const address = location.state?.address;
+  const name = location.state?.name;
   const [ongoingProjects, setOngoingProjects] = useState([]);
   const [completedProjects, setCompletedProjects] = useState([]);
   const [userFundedProjects, setUserFundedProjects] = useState([]);
@@ -97,20 +97,31 @@ function ProfileComponent(props) {
   }, [props.userAddress, props.contract]);
 
   useEffect(() => {
+    if (!address) {
+      return;
+    }
     getProjectList();
-  }, [getProjectList]);
+  }, [address, getProjectList]);
 
   useEffect(() => {
-    if (props.userAddress === address) {
+    if (address && props.userAddress === address) {
       // only executing if visit own profile
       getUserFundingList();
     }
   }, [address, getUserFundingList, props.userAddress]);
 
+  if (!address) {
+    return (
+      <div className="noProjects">
+        Open a profile from a project or reconnect your wallet to view profile details.
+      </div>
+    );
+  }
+
   return (
     <div className="profileContainer">
       <div className="profileHeadingContainer">
-        <h1>{name}</h1>
+        <h1>{name || address}</h1>
       </div>
       <div className="profileAddressContainer">
         <h2>{address}</h2>

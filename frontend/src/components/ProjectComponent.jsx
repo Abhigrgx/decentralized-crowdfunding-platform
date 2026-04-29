@@ -25,7 +25,7 @@ function ProjectComponent(props) {
   const [timerString, setTimerString] = useState("");
   const [isOver, setIsOver] = useState(false);
   const location = useLocation();
-  const { index } = location.state;
+  const index = location.state?.index;
   const PRECISION = 10 ** 18;
 
   // func to update the progress bar everytime getProjectDetails() executes.
@@ -64,12 +64,13 @@ function ProjectComponent(props) {
       for (const idx in contributors) {
         tmp.push({
           contributor: contributors[idx],
-          amount: amount[idx],
+          amount: Number(amount[idx]),
           refundClaimed: refundClaimed[idx]
         });
       }
 
-      tmp.sort((a, b) => {return (b.amount - a.amount)});
+      tmp.sort((a, b) => a.amount - b.amount);
+      tmp.reverse();
       
       let contributorsCopy = [];
       let amountCopy = [];
@@ -106,11 +107,17 @@ function ProjectComponent(props) {
   }
 
   useEffect(() => {
+    if (index === undefined) {
+      return;
+    }
     getProjectDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [index]);
 
   useEffect(() => {
+    if (index === undefined) {
+      return;
+    }
     getProjectDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalShow]);
@@ -189,7 +196,7 @@ function ProjectComponent(props) {
       let txn;
       try {
         txn = await props.contract.claimFund(parseInt(index));
-        await txn.wait(txn);
+        await txn.wait();
         alert('Fund succesfully claimed');
 
         setProjectDetails({
@@ -239,7 +246,7 @@ function ProjectComponent(props) {
       let txn;
       try {
         txn = await props.contract.claimRefund(parseInt(index));
-        await txn.wait(txn);
+        await txn.wait();
         alert('Refund claimed succesfully');
         let refundClaimedCopy = [...projectDetails.refundClaimed];
         refundClaimedCopy[getContributorIndex()] = true;
@@ -267,6 +274,14 @@ function ProjectComponent(props) {
           alert('Error claiming refund: ' + error);
           console.log(error);
       }
+  }
+
+  if (index === undefined) {
+    return (
+      <div className="noProjects">
+        Select a project from the home or discover page to view its details.
+      </div>
+    );
   }
 
   return (
