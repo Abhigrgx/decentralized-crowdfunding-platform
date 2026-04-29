@@ -1,94 +1,71 @@
-import CategoryComponent from "./CategoryComponent";
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import dummyPic from "../assets/pg1.jpg";
 import { toPublicGatewayUrl } from "../utils/ipfs";
-import { Link, useLocation } from "react-router-dom";
-import { getAllProjects as fetchAllProjects } from "../api/client";
+import CategoryComponent from "./CategoryComponent";
+import { getAllProjects } from "../api/client";
 
-export default function DiscoverComponent(props) {
-  const location = useLocation();
-  const [filter, setFilter] = useState(
-    location?.state?.selected >= 0 ? location.state.selected : -1
-  );
+const PRECISION = 10 ** 18;
+
+export default function DiscoverComponent() {
   const [projects, setProjects] = useState([]);
-  const changeFilter = (val) => {
-    setFilter(val);
-  };
-  const getAllProjects = async () => {
-    try {
-      const result = await fetchAllProjects();
-      let res = result.data.map((p, idx) => ({
-        amountRaised: Number(p.amountRaised),
-        cid: p.cid,
-        creatorName: p.creatorName,
-        fundingGoal: Number(p.fundingGoal),
-        projectDescription: p.projectDescription,
-        projectName: p.projectName,
-        totalContributors: p.totalContributors,
-        index: p.id,
-        category: Number(p.category),
-      }));
-
-      if (filter !== -1) {
-        let tmp = [];
-        for (const index in res) {
-          if (res[index].category === filter) {
-            tmp.push(res[index]);
-          }
-        }
-        res = tmp;
-      }
-
-      setProjects(res);
-    } catch (err) {
-      console.error("Failed to fetch projects:", err);
-      alert("Failed to load projects: " + err.message);
-    }
-  };
-  const renderCards = () => {
-    return projects.map((project, index) => {
-      return (
-        <Link to="/project" state={{ index: project.index }} key={index}>
-          <div className="projectCardWrapper">
-            <div className="projectCard">
-              <div
-                className="cardImg"
-                style={{
-                  backgroundImage: project.cid
-                    ? `url(${toPublicGatewayUrl(project.cid)})`
-                    : dummyPic,
-                }}
-              ></div>
-              <div className="cardDetail">
-                <div className="cardTitle">{project.projectName}</div>
-                <div className="cardDesc">{project.projectDescription}</div>
-                <div className="cardAuthor">{project.creatorName}</div>
-              </div>
-            </div>
-          </div>
-        </Link>
-      );
-    });
-  };
+  const [error, setError] = useState("");
+  const location = useLocation();
+  const filterCategory = location.state?.category ?? null;
 
   useEffect(() => {
-    getAllProjects();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+    (async () => {
+      try {
+        const result = await getAllProjects();
+        let res = result.data.map((p) => ({
+          amountRaised: Number(p.amountRaised),
+          cid: p.cid,
+          creatorName: p.creatorName,
+          fundingGoal: Number(p.fundingGoal),
+          projectDescription: p.projectDescription,
+          projectName: p.projectName,
+          category: Number(p.category),
+          index: p.id,
+        }));
+        if (filterCategory !== null) res = res.filter((p) => p.category === filterCategory);
+        setProjects(res);
+      } catch (err) {
+        setError("Failed to load projects: " + err.message);
+      }
+    })();
+  }, [filterCategory]);
 
   return (
     <>
-      <CategoryComponent
-        filter={filter}
-        changeCategory={(val) => changeFilter(val)}
-      />
-      <div className="discoverHeading">Discover</div>
+      <CategoryComponent />
+      <div className="discoverHeading">Discover Projects</div>
+      {error && <div className="error">{error}</div>}
       <div className="discoverContainer">
-        {projects.length !== 0 ? (
-          renderCards()
-        ) : (
-          <div className="noProjects">No projects found</div>
-        )}
+        {projects.length > 0 ? projects.map((project, idx) => (
+          <div className="projectCardWrapper" key={idx}>
+            <div className="projectCard">
+              <Link to="/project" state={{ index: project.index }}>
+                <div className="cardImgWrapper">
+                  <div className="cardImg" style={{
+                    backgroundImage: project.cid ? `url(${toPublicGatewayUrl(project.cid)})` : `url(${dummyPic})`
+                  }} />
+                </div>
+              </Link>
+              <div className="cardDetail">
+                <div className="cardTitle">
+                  <Link to="/project" state={{ index: project.index }}>{project.projectName}</Link>
+                </div>
+                <div className="cardDesc">{project.projectDescription}</div>
+                <div className="cardAuthor">{"By " + project.creatorName}</div>
+                <div className="progressBarWrapper">
+                  <div className="progressBar" style={{
+                    width: `${Math.min((project.amountRaised / project.fundingGoal) * 100, 100)}%`
+                  }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )) : <div className="noProjects">No projects found</div>}
       </div>
     </>
   );
