@@ -1,201 +1,105 @@
+import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { uploadImage } from "../api/client";
-function CreateProjectComponent(props) {
-  const [formInput, setFormInput] = useState({
-    category: "",
-    projectName: "",
-    description: "",
-    creatorName: "",
-    image: "",
-    link: "",
-    goal: 0.00001,
-    duration: 1,
-    refundPolicy: "",
-  });
 
-  const [inputImage, setInputImage] = useState(null);
+const CATEGORIES = ["Design & Tech", "Film", "Arts", "Games"];
 
-  // set the form input state if input changes
-  function handleChange(e) {
-    let name = e.target.name;
-    let value = e.target.value;
-    formInput[name] = value;
-    setFormInput(formInput);
-  }
+export default function CreateProjectComponent({ contract }) {
+  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+  const [loading, setLoading] = useState(false);
 
-  // read the input image file provided and set its corresponding state
-  async function handleImageChange(e) {
-    // read the file content on change
-    setInputImage(document.querySelector('input[type="file"]'));
-    console.log(document.querySelector('input[type="file"]'));
-  }
-
-  // return category code
-  function getCategoryCode() {
-    let categoryCode = {
-      "design and tech": 0,
-      film: 1,
-      arts: 2,
-      games: 3,
-    };
-    return categoryCode[formInput["category"]];
-  }
-
-  // return refund policy code
-  function getRefundPolicyCode() {
-    let refundCode = {
-      refundable: 0,
-      "non-refundable": 1,
-    };
-    return refundCode[formInput["refundPolicy"]];
-  }
-
-  // submit the form input data to smart contract
-  async function submitProjectData(e) {
-    // handle the submit action of the form
-e.preventDefault();
- if (inputImage) {
-   try {
-     console.log("Uploading to Pinata via backend...");
-     const { data: uploadResult, success } = await uploadImage(inputImage.files[0]);
-     
-     if (!success) {
-       throw new Error("Upload failed");
-     }
-     
-     console.log("Pinata CID:", uploadResult.cid);
-     formInput["image"] = uploadResult.gatewayUrl;
-   } catch (error) {
-     alert("Uploading file error: " + error.message);
-     console.log(error);
-     return;
-   }
- }
-
-    // check for double submit (since the formInput['category']) is changed to integer on first submit
-    // if not checked, second submit gives undefined value since getCategoryCode() doesn't have any mapping for integer code.
-    if (!Number.isInteger(formInput["category"])) {
-      formInput["category"] = getCategoryCode();
-    }
-    // same reason as above
-    if (!Number.isInteger(formInput["refundPolicy"])) {
-      formInput["refundPolicy"] = getRefundPolicyCode();
-    }
-
-    formInput["duration"] = parseFloat(formInput["duration"]);
-    formInput["goal"] = parseFloat(formInput["goal"]);
-
-    console.log(formInput);
-
-    // upload form data to contract
-    let txn;
+  async function onSubmit(data) {
+    setLoading(true);
     try {
-      txn = await props.contract.createNewProject(
-        formInput["projectName"],
-        formInput["description"],
-        formInput["creatorName"],
-        formInput["link"],
-        formInput["image"],
-        formInput["goal"],
-        formInput["duration"],
-        formInput["category"],
-        formInput["refundPolicy"]
-      );
+      let projectCid = "";
+      const imageFile = data.projectImage?.[0];
 
-      await txn.wait(txn);
-      alert("Project creation complete!!");
-      document.getElementsByName("projectForm")[0].reset();
-      return false;
-    } catch (error) {
-      alert("Error on calling function: " + error);
-      console.log(error);
+      if (imageFile) {
+        const uploadResult = await uploadImage(imageFile);
+        projectCid = uploadResult?.cid || "";
+      }
+
+      const fundingGoal = Number(data.fundingGoal);
+      const durationInMinutes = Number(data.duration) * 24 * 60;
+      const txn = await contract.createNewProject(
+        data.projectName,
+        data.projectDescription,
+        data.creatorName,
+        data.projectLink || "",
+        projectCid,
+        fundingGoal,
+        durationInMinutes,
+        Number(data.category),
+        Number(data.refundPolicy)
+      );
+      await txn.wait();
+      alert("Project created successfully!");
+      reset();
+    } catch (err) {
+      console.error("Create project error:", err);
+      alert("Error creating project: " + err.message);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    // onSubmit function to do further operation with form data --> not defined yet
     <div className="create-form">
-      <form method="post" onSubmit={submitProjectData} name="projectForm">
-        <h1>Create Project</h1>
-        <label>Category</label>
-        <select name="category" required onChange={handleChange}>
-          <option value="" selected disabled hidden>
-            Select category
-          </option>
-          <option value="design and tech">Design and Tech</option>
-          <option value="film">Film</option>
-          <option value="arts">Arts</option>
-          <option value="games">Games</option>
-        </select>
-        <label>Project Name</label>
-        <input
-          name="projectName"
-          placeholder="Enter the project name"
-          required
-          onChange={handleChange}
-        />
-        <label>Project Description</label>
-        <textarea
-          name="description"
-          placeholder="Enter project description"
-          cols="50"
-          rows="5"
-          required
-          onChange={handleChange}
-        />
+      <h1>Start a Project</h1>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <label>Creator Name</label>
-        <input
-          name="creatorName"
-          placeholder="Enter Creator Name"
-          required
-          onChange={handleChange}
-        />
+        <input {...register("creatorName", { required: "Required" })} placeholder="Your name" />
+        <div className="error">{errors.creatorName?.message}</div>
+
+        <label>Project Name</label>
+        <input {...register("projectName", { required: "Required" })} placeholder="Project title" />
+        <div className="error">{errors.projectName?.message}</div>
+
+        <label>Project Description</label>
+        <textarea {...register("projectDescription", { required: "Required" })} placeholder="Describe your project" />
+        <div className="error">{errors.projectDescription?.message}</div>
+
+        <label>Project Link</label>
+        <input {...register("projectLink")} placeholder="https://..." />
+
         <label>Upload Project Image</label>
         <input
           type="file"
-          name="image"
           accept="image/*"
-          onChange={handleImageChange}
+          {...register("projectImage")}
         />
-        <p className="caution">*Image of resolution 1920x1080 is preffered for better display</p>
-        <label>Project Link</label>
-        <input
-          type="url"
-          name="link"
-          placeholder="Enter link to the project"
-          onChange={handleChange}
-        />
+        <div className="caution">*Image of resolution 1920x1080 is preferred for better display</div>
+
         <label>Funding Goal (AVAX)</label>
-        <input
-          type="number"
-          step="1"
-          name="goal"
-          placeholder="Enter the funding goal"
-          min="1"
-          required
-          onChange={handleChange}
-        />
-        <label>Duration (Minutes)</label>
-        <input
-          type="number"
-          name="duration"
-          placeholder="Enter the duration for the funding"
-          min="1"
-          required
-          onChange={handleChange}
-        />
-        <label>Refund policy</label>
-        <select name="refundPolicy" required onChange={handleChange}>
-          <option value="" selected disabled hidden>
-            Select Refund type
-          </option>
-          <option value="refundable">Refundable</option>
-          <option value="non-refundable">Non-Refundable</option>
+        <input type="number" step="1" min="1"
+          {...register("fundingGoal", {
+            required: "Required",
+            min: 1,
+            validate: (value) => Number.isInteger(Number(value)) || "Use a whole AVAX amount",
+          })} placeholder="e.g. 10" />
+        <div className="error">{errors.fundingGoal?.message}</div>
+
+        <label>Duration (days)</label>
+        <input type="number" min="1"
+          {...register("duration", { required: "Required", min: 1 })} placeholder="e.g. 30" />
+        <div className="error">{errors.duration?.message}</div>
+
+        <label>Category</label>
+        <select {...register("category", { required: "Required" })}>
+          {CATEGORIES.map((cat, idx) => <option key={idx} value={idx}>{cat}</option>)}
         </select>
-        <input type="submit" className="submitButton" value="Submit" />
+
+        <label>Refund Policy</label>
+        <select {...register("refundPolicy")}>
+          <option value={0}>Refundable</option>
+          <option value={1}>Non-Refundable</option>
+        </select>
+        <div className="caution">Non-refundable projects keep funds even if goal is not met.</div>
+
+        <button className="submitButton" type="submit" disabled={loading}>
+          {loading ? "Creating..." : "Create Project"}
+        </button>
       </form>
     </div>
   );
 }
-
-export default CreateProjectComponent;
