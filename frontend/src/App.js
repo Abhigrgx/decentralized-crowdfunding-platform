@@ -11,22 +11,20 @@ import ProfileComponent from "./components/ProfileComponent";
 import { useState } from "react";
 import { ethers } from "ethers";
 import { abi } from "./abi";
+
 const CONTRACT_ADDRESS = "0x5d89a30c8B83232831AEf137863dDEb3BddfB68a";
 
 function App() {
   const [myContract, setMyContract] = useState(null);
-  const [address, setAddress] = useState();
-  let provider, signer, add;
+  const [address, setAddress] = useState("");
 
   async function changeNetwork() {
-    // switch network to avalanche
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",
         params: [{ chainId: "0xa869" }],
       });
     } catch (switchError) {
-      // This error code indicates that the chain has not been added to MetaMask.
       if (switchError.code === 4902) {
         try {
           await window.ethereum.request({
@@ -35,96 +33,47 @@ function App() {
               {
                 chainId: "0xa869",
                 chainName: "Avalanche Fuji Testnet",
-                nativeCurrency: {
-                  name: "Avalanche",
-                  symbol: "AVAX",
-                  decimals: 18,
-                },
+                nativeCurrency: { name: "Avalanche", symbol: "AVAX", decimals: 18 },
                 rpcUrls: ["https://api.avax-test.network/ext/bc/C/rpc"],
               },
             ],
           });
-        } catch (addError) {
-          alert("Error in add avalanche FUJI testnet");
+        } catch {
+          alert("Error adding Avalanche FUJI testnet");
         }
       }
     }
   }
 
-  // Connects to Metamask and sets the myContract state with a new instance of the contract
   async function connect() {
-    let res = await connectToMetamask();
-    if (res === true) {
-      await changeNetwork();
-      
-      // ETHERS V6 UPDATES:
-      provider = new ethers.BrowserProvider(window.ethereum);
-      signer = await provider.getSigner(); 
-      add = await signer.getAddress();
-      
-      setAddress(add);
-
-      try {
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
-        setMyContract(contract);
-      } catch (err) {
-        alert("CONTRACT_ADDRESS not set properly");
-        console.log(err);
-      }
-    } else {
-      alert("Couldn't connect to Metamask");
-    }
-  }
-
-  // Helps open Metamask
-  async function connectToMetamask() {
     try {
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-      return true;
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      await changeNetwork();
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const add = await signer.getAddress();
+      setAddress(add);
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
+      setMyContract(contract);
     } catch (err) {
-      return false;
+      console.error("Connect error:", err);
+      alert("Couldn't connect to MetaMask");
     }
   }
-  const checkConnected = (component) => {
-    return !myContract ? (
-      <ConnectWallet connectMetamask={connect} />
-    ) : (
-      component
-    );
-  };
+
+  const checkConnected = (component) =>
+    !myContract ? <ConnectWallet connectMetamask={connect} /> : component;
+
   return (
     <div className="app">
-      <BrowserRouter basename={process.env.PUBLIC_URL} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         {myContract && <NavbarComponent address={address} />}
         <Routes>
-          <Route
-            path="/"
-            element={checkConnected(<HomeComponent contract={myContract} />)}
-          />
-          <Route
-            path="create_project"
-            element={checkConnected(
-              <CreateProjectComponent contract={myContract} />
-            )}
-          />
-          <Route
-            path="discover"
-            element={checkConnected(
-              <DiscoverComponent contract={myContract} />
-            )}
-          />
-          <Route
-            path="profile"
-            element={checkConnected(
-              <ProfileComponent contract={myContract} userAddress={address} />
-            )}
-          />
-          <Route
-            path="project"
-            element={checkConnected(
-              <ProjectComponent contract={myContract} userAddress={address} />
-            )}
-          />
+          <Route path="/" element={checkConnected(<HomeComponent contract={myContract} />)} />
+          <Route path="create_project" element={checkConnected(<CreateProjectComponent contract={myContract} />)} />
+          <Route path="discover" element={checkConnected(<DiscoverComponent contract={myContract} />)} />
+          <Route path="profile" element={checkConnected(<ProfileComponent contract={myContract} userAddress={address} />)} />
+          <Route path="project" element={checkConnected(<ProjectComponent contract={myContract} userAddress={address} />)} />
         </Routes>
         {myContract && <FooterComponent />}
       </BrowserRouter>
