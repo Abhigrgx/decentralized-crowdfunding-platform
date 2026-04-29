@@ -1,66 +1,40 @@
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api";
+const BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export async function apiCall(path, options = {}) {
-  const fullUrl = `${API_BASE_URL}${path}`;
-
-  try {
-    const res = await fetch(fullUrl, {
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers
-      },
-      ...options
-    });
-
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(error.error?.message || `API error: ${res.status}`);
-    }
-    
-    return res.json();
-  } catch (err) {
-    console.error(`[API] Error calling ${fullUrl}:`, err);
-    throw err;
-  }
-}
-
-export async function uploadImage(file) {
-  const form = new FormData();
-  form.append("file", file);
-  
-  const res = await fetch(`${API_BASE_URL}/uploads/pinata`, {
-    method: "POST",
-    body: form
+async function apiFetch(path, options = {}) {
+  const url = BASE_URL ? `${BASE_URL}${path}` : path;
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...options.headers },
+    ...options,
   });
-  
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.error?.message || "Upload failed");
-  }
-  
-  return res.json();
+  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
+  const payload = await res.json();
+  return payload?.data ?? payload;
 }
 
 export async function getAllProjects() {
-  return apiCall("/projects");
-}
-
-export async function getProject(id) {
-  return apiCall(`/projects/${id}`);
+  const data = await apiFetch("/api/projects");
+  return { data };
 }
 
 export async function getUserFundings(address) {
-  return apiCall(`/projects/user/${address}/fundings`);
+  const data = await apiFetch(`/api/projects/user/${address}/fundings`);
+  return { data };
 }
 
-export async function getMilestones(projectId) {
-  return apiCall(`/projects/${projectId}/milestones`);
-}
+export async function uploadImage(file) {
+  const url = BASE_URL ? `${BASE_URL}/api/uploads/pinata` : "/api/uploads/pinata";
+  const formData = new FormData();
+  formData.append("file", file);
 
-export async function syncProjects() {
-  return apiCall("/projects/sync", { method: "POST" });
-}
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
 
-export async function getProjectSnapshots() {
-  return apiCall("/projects/snapshots");
+  if (!res.ok) {
+    throw new Error(`Upload failed (${res.status}): ${await res.text()}`);
+  }
+
+  const payload = await res.json();
+  return payload?.data ?? payload;
 }
